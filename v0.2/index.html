@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="/coco.css">
 <title>CoconutAI v2.0 — Tamil Nadu Forecast</title>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-
+<link rel="stylesheet" href="coco.css">
 </head>
 <body>
 <div id="train-overlay">
@@ -73,7 +72,6 @@
 <button class="cbtn" onclick="setRange(9999,this)">ALL</button>
 </div>
 </div>
-<!-- 🆕 FIX: Wrapped in chart-container -->
 <div class="chart-container"><canvas id="mainChart"></canvas></div>
 </div>
 <div class="shdr">
@@ -92,7 +90,6 @@
 </div>
 <div class="cc">
 <div class="chdr"><div><div class="ctit">90-Day Projection · Three Models + Ensemble</div><div class="csb">Shaded = 80% CI (empirical from residuals) · Each model line shown separately</div></div></div>
-<!-- 🆕 FIX: Wrapped in chart-container-lg -->
 <div class="chart-container-lg"><canvas id="fcastChart"></canvas></div>
 </div>
 <div class="shdr"><div class="stit">Weekly Forecast Breakdown</div><span class="tag">12 Weeks</span></div>
@@ -104,7 +101,6 @@
 </div>
 <div class="shdr" style="margin-top:.8rem"><div class="stit">Monthly Outlook</div><span class="tag">6 Months</span></div>
 <div class="cc">
-<!-- 🆕 FIX: Wrapped in chart-container-md -->
 <div class="chart-container-md"><canvas id="monthChart"></canvas></div>
 </div>
 </div>
@@ -153,18 +149,15 @@
 <div class="g2">
 <div class="card"><div class="ctit" style="margin-bottom:.8rem">AR(7) Lag Coefficients (Feature Importance)</div><div id="feat-bars"></div></div>
 <div class="card"><div class="ctit" style="margin-bottom:.8rem">Ensemble Weights (Optimised on Val Set)</div>
-<!-- 🆕 FIX: Wrapped in chart-container-sm -->
 <div class="chart-container-sm"><canvas id="wgtChart"></canvas></div>
 </div>
 </div>
 <div class="cc" style="margin-top:0">
 <div class="ctit" style="margin-bottom:.8rem">All Models vs Actual — Validation Period</div>
-<!-- 🆕 FIX: Wrapped in chart-container -->
 <div class="chart-container"><canvas id="valChart"></canvas></div>
 </div>
 <div class="cc" style="margin-top:0">
 <div class="ctit" style="margin-bottom:.8rem">Ensemble Residuals (Validation)</div>
-<!-- 🆕 FIX: Wrapped in chart-container -->
 <div class="chart-container"><canvas id="residChart"></canvas></div>
 </div>
 </div>
@@ -183,6 +176,6 @@
 </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="/coco.js"></script>
+<script src="coco.js"></script>
 </body>
 </html>
