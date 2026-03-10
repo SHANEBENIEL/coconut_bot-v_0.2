@@ -126,10 +126,9 @@ tbody td{padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:.72re
 .fb{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
 .ff{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px}
 .fp{min-width:32px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text2)}
-
-/* 🆕 FIX: Chart Container Constraints */
-.chart-container{position:relative;height:270px;width:100%;max-width:100%}
-.chart-container-lg{position:relative;height:300px;width:100%;max-width:100%}
-.chart-container-md{position:relative;height:230px;width:100%;max-width:100%}
-.chart-container-sm{position:relative;height:200px;width:100%;max-width:100%}
-canvas{display:block;width:100%!important;height:100%!important}
+/* Chart Container Constraints */
+.chart-container{position:relative;height:270px;width:100%}
+.chart-container-lg{position:relative;height:300px;width:100%}
+.chart-container-md{position:relative;height:230px;width:100%}
+.chart-container-sm{position:relative;height:200px;width:100%}
+canvas{display:block;max-width:100%}
