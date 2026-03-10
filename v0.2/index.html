@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/coco.css">
+<title>CoconutAI v2.0 — Tamil Nadu Forecast</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+</head>
+<body>
+<div id="train-overlay">
+<div class="tbox">
+<div class="ttl">🧠 Training Real ML Models</div>
+<div class="tsub">Running actual machine learning in your browser.<br>AR(7) via OLS · Holt-Winters via SSE optimization · LSTM via TensorFlow.js</div>
+<div id="steps">
+<div class="step"><div class="si pend" id="si0">○</div><div class="sl" id="sl0">Load Tamil Nadu Dataset</div><div class="sv" id="sv0">—</div></div>
+<div class="step"><div class="si pend" id="si1">○</div><div class="sl" id="sl1">Fit AR(7) — OLS normal equations</div><div class="sv" id="sv1">—</div></div>
+<div class="step"><div class="si pend" id="si2">○</div><div class="sl" id="sl2">Fit Holt-Winters — SSE grid search</div><div class="sv" id="sv2">—</div></div>
+<div class="step"><div class="si pend" id="si3">○</div><div class="sl" id="sl3">Train LSTM (TensorFlow.js, 15 epochs)</div><div class="sv" id="sv3">—</div></div>
+<div class="step"><div class="si pend" id="si4">○</div><div class="sl" id="sl4">Ensemble calibration & Naive Benchmark</div><div class="sv" id="sv4">—</div></div>
+</div>
+<div class="pbar"><div class="pfill" id="pf" style="width:0%"></div></div>
+<div class="elog" id="elog"></div>
+</div>
+</div>
+<header class="header">
+<div class="logo"><div class="logo-mark">🥥</div>Coconut<em>AI</em></div>
+<nav class="nav">
+<button class="nb active" onclick="showPage('dashboard',this)">Dashboard</button>
+<button class="nb" onclick="showPage('forecast',this)">Forecast</button>
+<button class="nb" onclick="showPage('dataset',this)">Dataset</button>
+<button class="nb" onclick="showPage('model',this)">Model</button>
+</nav>
+<div class="hdr-right">
+<div class="pill"><div class="dot"></div>LIVE · Tamil Nadu</div>
+<div class="mst" id="mst">Initializing…</div>
+</div>
+</header>
+<main class="main">
+<div class="page active" id="page-dashboard">
+<div class="ticker">
+<div class="tk"><span class="tl">Today</span><span class="tv" id="tk0">—</span><span class="tv" id="tk0c">—</span></div>
+<div class="tsep"></div>
+<div class="tk"><span class="tl">7D High</span><span class="tv" id="tk1">—</span></div>
+<div class="tsep"></div>
+<div class="tk"><span class="tl">7D Low</span><span class="tv" id="tk2">—</span></div>
+<div class="tsep"></div>
+<div class="tk"><span class="tl">30D Avg</span><span class="tv" id="tk3">—</span></div>
+<div class="tsep"></div>
+<div class="tk"><span class="tl">Volatility σ</span><span class="tv" id="tk4">—</span></div>
+<div class="tsep"></div>
+<div class="tk"><span class="tl">RSI-14</span><span class="tv" id="tk5">—</span></div>
+<div class="tsep"></div>
+<div class="tk"><span class="tl">AI Signal</span><span class="tv ac" id="tk6">—</span></div>
+</div>
+<div class="g4">
+<div class="card"><div class="ca ca-c"></div><div class="clbl">Current Price</div><div class="cval up" id="sc0">₹—</div><div class="csub" id="sc0s">—</div></div>
+<div class="card"><div class="ca ca-v"></div><div class="clbl">Tomorrow (LSTM)</div><div class="cval" id="sc1">₹—</div><div class="csub" id="sc1s">Range: —</div></div>
+<div class="card"><div class="ca ca-o"></div><div class="clbl">Next Month (Ensemble)</div><div class="cval" id="sc2">₹—</div><div class="csub" id="sc2s">—</div></div>
+<div class="card"><div class="ca ca-g"></div><div class="clbl">vs Naive Benchmark</div><div class="cval" id="sc3" style="color:var(--warn)">—</div><div class="csub" id="sc3s">—</div></div>
+</div>
+<div class="cc">
+<div class="chdr">
+<div><div class="ctit">Price History + AI Forecast — Pollachi Market</div>
+<div class="csb">Green = Actual · Violet dashed = Ensemble · Cyan = LSTM · Shaded = 80% CI</div></div>
+<div class="cctrl">
+<button class="cbtn" onclick="setRange(30,this)">1M</button>
+<button class="cbtn active" onclick="setRange(90,this)">3M</button>
+<button class="cbtn" onclick="setRange(180,this)">6M</button>
+<button class="cbtn" onclick="setRange(365,this)">1Y</button>
+<button class="cbtn" onclick="setRange(9999,this)">ALL</button>
+</div>
+</div>
+<!-- 🆕 FIX: Wrapped in chart-container -->
+<div class="chart-container"><canvas id="mainChart"></canvas></div>
+</div>
+<div class="shdr">
+<div><div class="stit">AI Ensemble Predictions</div><div class="ssub">Real outputs — AR(7) + Holt-Winters + LSTM trained in-browser</div></div>
+<span class="tag">Feb 23, 2026</span>
+</div>
+<div class="fcg" id="fc-cards"></div>
+<div class="g2">
+<div class="card"><div class="ctit" style="margin-bottom:.8rem">📊 Technical Indicators</div><div id="tech-sigs"></div></div>
+<div class="card"><div class="ctit" style="margin-bottom:.8rem">🌿 Seasonal & Model Context</div><div id="seas-sigs"></div></div>
+</div>
+</div>
+<div class="page" id="page-forecast">
+<div class="shdr" style="margin-bottom:1.1rem">
+<div><div class="stit">Multi-Horizon Forecast</div><div class="ssub">Ensemble CI widens with horizon · Conformal prediction intervals from validation residuals</div></div>
+</div>
+<div class="cc">
+<div class="chdr"><div><div class="ctit">90-Day Projection · Three Models + Ensemble</div><div class="csb">Shaded = 80% CI (empirical from residuals) · Each model line shown separately</div></div></div>
+<!-- 🆕 FIX: Wrapped in chart-container-lg -->
+<div class="chart-container-lg"><canvas id="fcastChart"></canvas></div>
+</div>
+<div class="shdr"><div class="stit">Weekly Forecast Breakdown</div><span class="tag">12 Weeks</span></div>
+<div class="tcard">
+<div class="twrap">
+<table><thead><tr><th>Wk</th><th>Period</th><th>Min ₹/kg</th><th>Expected</th><th>Max ₹/kg</th><th>Δ% Now</th><th>Conf.</th><th>AR Signal</th><th>LSTM Signal</th></tr></thead>
+<tbody id="fc-tbody"></tbody></table>
+</div>
+</div>
+<div class="shdr" style="margin-top:.8rem"><div class="stit">Monthly Outlook</div><span class="tag">6 Months</span></div>
+<div class="cc">
+<!-- 🆕 FIX: Wrapped in chart-container-md -->
+<div class="chart-container-md"><canvas id="monthChart"></canvas></div>
+</div>
+</div>
+<div class="page" id="page-dataset">
+<div class="tcard">
+<div class="thead-bar">
+<div><div class="ttitle">Tamil Nadu Coconut Price Dataset</div><div style="font-size:.7rem;color:var(--text2);margin-top:2px" id="ds-cnt">—</div></div>
+<div class="tacts">
+<button class="btn" onclick="exportCSV()">⬇ CSV</button>
+<button class="btn pri" onclick="openAdd()">+ Add</button>
+</div>
+</div>
+<div class="srow">
+<input class="sinp" type="text" placeholder="Search date, market…" id="dss" oninput="filterDS()">
+<select class="ssel" id="dsy" onchange="filterDS()"><option value="">All Years</option><option>2020</option><option>2021</option><option>2022</option><option>2023</option><option>2024</option><option>2025</option><option>2026</option></select>
+<select class="ssel" id="dsm" onchange="filterDS()"><option value="">All Markets</option><option>Pollachi</option><option>Coimbatore</option><option>Chennai</option><option>Tiruppur</option><option>Erode</option><option>Salem</option><option>Madurai</option></select>
+</div>
+<div class="twrap">
+<table><thead><tr><th>#</th><th>Date</th><th>Market</th><th>Min</th><th>Modal</th><th>Max</th><th>Volume</th><th>Grade</th><th></th></tr></thead>
+<tbody id="ds-tbody"></tbody></table>
+</div>
+<div class="tfoot"><span id="ds-info">—</span>
+<div class="pnav">
+<button class="btn" onclick="dsPage(-1)">← Prev</button>
+<span id="ds-pg" style="font-family:monospace;font-size:.7rem;padding:3px 7px">—</span>
+<button class="btn" onclick="dsPage(1)">Next →</button>
+</div>
+</div>
+</div>
+</div>
+<div class="page" id="page-model">
+<div class="shdr" style="margin-bottom:1.1rem">
+<div><div class="stit">Real Model Architecture & Performance</div><div class="ssub">All models trained in-browser via actual math — no fake numbers</div></div>
+<span class="tag">TF.js v4 · In-Browser</span>
+</div>
+<div class="card" style="margin-bottom:1.1rem">
+<div class="ctit" style="margin-bottom:.6rem">What actually runs</div>
+<div style="font-size:.78rem;color:var(--text2);line-height:1.75">
+<strong style="color:var(--text)">① AR(7)</strong> — Fits OLS regression on lags [p<sub>t−1</sub>…p<sub>t−7</sub>] via normal equations X'X·β = X'y solved by Gaussian elimination.<br>
+<strong style="color:var(--text)">② Holt-Winters</strong> — Double exponential smoothing (level + trend). α and β optimised by grid-searching SSE on the training fold.<br>
+<strong style="color:var(--text)">③ LSTM</strong> — Two stacked LSTM layers (16→8 units) + Dense(1), 14-step lookback, trained with Adam (lr=0.005), MSE loss, 15 epochs in TF.js.<br>
+<strong style="color:var(--text)">Ensemble</strong> — Grid-searched weights (step 0.1) minimising validation MAPE. Intervals: empirical ±q80/q95 of |residuals|, scaled by √horizon.
+</div>
+<div class="mgrid" id="mgrid"></div>
+</div>
+<div class="g2">
+<div class="card"><div class="ctit" style="margin-bottom:.8rem">AR(7) Lag Coefficients (Feature Importance)</div><div id="feat-bars"></div></div>
+<div class="card"><div class="ctit" style="margin-bottom:.8rem">Ensemble Weights (Optimised on Val Set)</div>
+<!-- 🆕 FIX: Wrapped in chart-container-sm -->
+<div class="chart-container-sm"><canvas id="wgtChart"></canvas></div>
+</div>
+</div>
+<div class="cc" style="margin-top:0">
+<div class="ctit" style="margin-bottom:.8rem">All Models vs Actual — Validation Period</div>
+<!-- 🆕 FIX: Wrapped in chart-container -->
+<div class="chart-container"><canvas id="valChart"></canvas></div>
+</div>
+<div class="cc" style="margin-top:0">
+<div class="ctit" style="margin-bottom:.8rem">Ensemble Residuals (Validation)</div>
+<!-- 🆕 FIX: Wrapped in chart-container -->
+<div class="chart-container"><canvas id="residChart"></canvas></div>
+</div>
+</div>
+</main>
+<div class="modal-bg" id="modal">
+<div class="modal">
+<div class="mt" id="mtitle">Add Record</div>
+<div class="fr"><div class="fg"><label class="fl">Date</label><input type="date" class="fi" id="m-date"></div>
+<div class="fg"><label class="fl">Market</label><select class="fi" id="m-mkt"><option>Pollachi</option><option>Coimbatore</option><option>Chennai</option><option>Tiruppur</option><option>Erode</option><option>Salem</option><option>Madurai</option></select></div></div>
+<div class="fr"><div class="fg"><label class="fl">Min ₹/kg</label><input type="number" class="fi" id="m-min" step=".5"></div>
+<div class="fg"><label class="fl">Max ₹/kg</label><input type="number" class="fi" id="m-max" step=".5"></div></div>
+<div class="fr"><div class="fg"><label class="fl">Modal ₹/kg</label><input type="number" class="fi" id="m-mod" step=".5"></div>
+<div class="fg"><label class="fl">Volume (t)</label><input type="number" class="fi" id="m-vol"></div></div>
+<div class="fg"><label class="fl">Grade</label><select class="fi" id="m-grd"><option>Premium</option><option>Grade A</option><option>Grade B</option><option>Mixed</option></select></div>
+<div class="macts"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="saveRec()">Save</button></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/coco.js"></script>
+</body>
+</html>
