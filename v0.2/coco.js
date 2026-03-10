@@ -2,33 +2,31 @@
 // ══════════════════════════════════════════
 // CACHE SYSTEM
 // ══════════════════════════════════════════
-const CACHE_KEY='coconutAI_models_v3';
-
+const CACHE_KEY='coconutAI_models_v4';
 async function loadCachedModels(){
-    try{
-        const cached=localStorage.getItem(CACHE_KEY);
-        if(cached){
-            const data=JSON.parse(cached);
-            if(Date.now()-data.ts<86400000){  // 24hr cache
-                arBeta=data.arBeta; 
-                hwP=data.hwP; 
-                WT=data.WT;
-                CI=data.CI; 
-                metrics=data.metrics;
-                return true;
-            }
-        }
-    }catch(e){console.error('Cache load error:',e);}
-    return false;
+try{
+const cached=localStorage.getItem(CACHE_KEY);
+if(cached){
+const data=JSON.parse(cached);
+if(Date.now()-data.ts<86400000){
+arBeta=data.arBeta;
+hwP=data.hwP;
+WT=data.WT;
+CI=data.CI;
+metrics=data.metrics;
+return true;
 }
-
+}
+}catch(e){console.error('Cache load error:',e);}
+return false;
+}
 function cacheModels(){
-    try{
-        localStorage.setItem(CACHE_KEY,JSON.stringify({
-            ts:Date.now(),arBeta,hwP,WT,CI,metrics
-        }));
-        console.log('✓ Models cached');
-    }catch(e){console.error('Cache save error:',e);}
+try{
+localStorage.setItem(CACHE_KEY,JSON.stringify({
+ts:Date.now(),arBeta,hwP,WT,CI,metrics
+}));
+console.log('✓ Models cached');
+}catch(e){console.error('Cache save error:',e);}
 }
 // ══════════════════════════════════════════
 // 1. DATA GENERATION
@@ -226,120 +224,112 @@ function prog(p){document.getElementById('pf').style.width=p+'%';}
 function elog(m){const e=document.getElementById('elog');e.innerHTML+=m+'<br>';e.scrollTop=e.scrollHeight;}
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 // ══════════════════════════════════════════
-// 9. TRAINING ORCHESTRATION
+// 9. TRAINING ORCHESTRATION (Fixed)
 // ══════════════════════════════════════════
 async function trainAll(){
-    try{
-        const cached=await loadCachedModels();
-        
-        step(0,'run');
-        DS=generateDataset(); 
-        filtDS=[...DS];
-        PP=DS.filter(d=>d.market==='Pollachi').map(d=>d.modalPrice);
-        TR=Math.floor(PP.length*.85);
-        const trP=PP.slice(0,TR), vaP=PP.slice(TR);
-        step(0,'done',`${DS.length.toLocaleString()} rows · ${PP.length} Pollachi`);
-        prog(15); await delay(50);
-        
-        if(cached && arBeta && hwP){
-            // Use cached AR & HW, but retrain LSTM
-            console.log('♻ Using cached AR/HW, training LSTM...');
-            document.getElementById('mst').textContent=`Cached AR/HW · Training LSTM...`;
-            
-            step(1,'done',`MAPE ${metrics.ar}% (cached)`);
-            step(2,'done',`MAPE ${metrics.hw}% (cached)`);
-            prog(45);
-        }else{
-            // Train AR(7)
-            step(1,'run');
-            arBeta=fitAR(trP,7);
-            const arVal=arForecast(trP,arBeta,vaP.length);
-            const arMP=mape(arVal,vaP).toFixed(2);
-            step(1,'done',`MAPE ${arMP}%`);
-            prog(30); await delay(40);
-            
-            // Train Holt-Winters
-            step(2,'run');
-            hwP=fitHW(trP);
-            const hwVal=hwForecast(trP,hwP.alpha,hwP.beta,vaP.length);
-            const hwMP=mape(hwVal,vaP).toFixed(2);
-            step(2,'done',`MAPE ${hwMP}%`);
-            prog(45); await delay(40);
-        }
-        
-        // Always train LSTM (can't cache TF.js models)
-        step(3,'run');
-        let lastL=0;
-        lstmObj=await trainLSTM(trP,(ep,loss)=>{
-            lastL=loss;
-            if(ep%5===0) elog(`LSTM ${ep+1}/${EPOCHS} loss=${loss.toFixed(5)}`);
-            prog(45+Math.round((ep/EPOCHS)*35));
-        });
-        const lmVal2=await lstmForecast(lstmObj,vaP.length);
-        const lmMP=mape(lmVal2,vaP).toFixed(2);
-        step(3,'done',`MAPE ${lmMP}%`);
-        prog(85); await delay(40);
-        
-        // Ensemble
-        step(4,'run');
-        const arVal=arForecast(trP,arBeta,vaP.length);
-        const hwVal=hwForecast(trP,hwP.alpha,hwP.beta,vaP.length);
-        WT=optWeights(arVal,hwVal,lmVal2,vaP);
-        const ensVal=ensemble(arVal,hwVal,lmVal2,WT,vaP.length);
-        const enMP=mape(ensVal,vaP).toFixed(2);
-        const enMA=mae(ensVal,vaP).toFixed(2);
-        const resid=vaP.map((v,i)=>v-ensVal[i]);
-        CI=residCI(resid);
-        metrics={ar:cached?metrics.ar:+arMP,hw:cached?metrics.hw:+hwMP,lm:+lmMP,ens:+enMP,mae:+enMA,acc:(100-+enMP).toFixed(1)};
-        vAct=[...vaP]; vAR=[...arVal]; vHW=[...hwVal]; vLM=[...lmVal2]; vEns=[...ensVal];
-        step(4,'done',`MAPE ${enMP}%`);
-        prog(100);
-        
-        // Cache AR/HW only (not LSTM)
-        cacheModels();
-        
-        await delay(300);
-        document.getElementById('train-overlay').style.display='none';
-        document.getElementById('mst').textContent=`Ens MAPE ${enMP}% · AR+HW+LSTM`;
-        
-        // Build forecasts and render
-        await buildFC();
-        populateAll();
-        
-    }catch(err){
-        console.error('Training error:',err);
-        elog(`❌ Error: ${err.message}`);
-        toast('⚠ Training failed - check console');
-    }
+try{
+const cached=await loadCachedModels();
+let arVal,hwVal,arMP,hwMP;
+
+step(0,'run');
+DS=generateDataset();
+filtDS=[...DS];
+PP=DS.filter(d=>d.market==='Pollachi').map(d=>d.modalPrice);
+TR=Math.floor(PP.length*.85);
+const trP=PP.slice(0,TR), vaP=PP.slice(TR);
+step(0,'done',`${DS.length.toLocaleString()} rows · ${PP.length} Pollachi`);
+prog(15); await delay(50);
+
+if(cached && arBeta && hwP){
+console.log('♻ Using cached AR/HW, training LSTM...');
+document.getElementById('mst').textContent=`Cached AR/HW · Training LSTM...`;
+arVal=arForecast(trP,arBeta,vaP.length);
+hwVal=hwForecast(trP,hwP.alpha,hwP.beta,vaP.length);
+arMP=metrics.ar.toFixed(2);
+hwMP=metrics.hw.toFixed(2);
+step(1,'done',`MAPE ${arMP}% (cached)`);
+step(2,'done',`MAPE ${hwMP}% (cached)`);
+prog(45);
+}else{
+step(1,'run');
+arBeta=fitAR(trP,7);
+arVal=arForecast(trP,arBeta,vaP.length);
+arMP=mape(arVal,vaP).toFixed(2);
+step(1,'done',`MAPE ${arMP}%`);
+prog(30); await delay(40);
+
+step(2,'run');
+hwP=fitHW(trP);
+hwVal=hwForecast(trP,hwP.alpha,hwP.beta,vaP.length);
+hwMP=mape(hwVal,vaP).toFixed(2);
+step(2,'done',`MAPE ${hwMP}%`);
+prog(45); await delay(40);
+}
+
+step(3,'run');
+let lastL=0;
+lstmObj=await trainLSTM(trP,(ep,loss)=>{
+lastL=loss;
+if(ep%5===0) elog(`LSTM ${ep+1}/${EPOCHS} loss=${loss.toFixed(5)}`);
+prog(45+Math.round((ep/EPOCHS)*35));
+});
+const lmVal2=await lstmForecast(lstmObj,vaP.length);
+const lmMP=mape(lmVal2,vaP).toFixed(2);
+step(3,'done',`MAPE ${lmMP}%`);
+prog(85); await delay(40);
+
+step(4,'run');
+WT=optWeights(arVal,hwVal,lmVal2,vaP);
+const ensVal=ensemble(arVal,hwVal,lmVal2,WT,vaP.length);
+const enMP=mape(ensVal,vaP).toFixed(2);
+const enMA=mae(ensVal,vaP).toFixed(2);
+const resid=vaP.map((v,i)=>v-ensVal[i]);
+CI=residCI(resid);
+metrics={ar:cached?metrics.ar:+arMP,hw:cached?metrics.hw:+hwMP,lm:+lmMP,ens:+enMP,mae:+enMA,acc:(100-+enMP).toFixed(1)};
+vAct=[...vaP]; vAR=[...arVal]; vHW=[...hwVal]; vLM=[...lmVal2]; vEns=[...ensVal];
+step(4,'done',`MAPE ${enMP}%`);
+prog(100);
+
+cacheModels();
+await delay(300);
+document.getElementById('train-overlay').style.display='none';
+document.getElementById('mst').textContent=`Ens MAPE ${enMP}% · AR+HW+LSTM`;
+
+await buildFC();
+populateAll();
+}catch(err){
+console.error('Training error:',err);
+elog(`❌ Error: ${err.message}`);
+toast('⚠ Training failed - check console');
+}
 }
 // ══════════════════════════════════════════
 // 10. FORWARD FORECAST
 // ══════════════════════════════════════════
 async function buildFC(){
-    try{
-        const N=90;
-        if(PP.length<LB){
-            toast('⚠ Not enough data for LSTM');
-            return;
-        }
-        const ar90=arForecast(PP,arBeta,N);
-        const hw90=hwForecast(PP,hwP.alpha,hwP.beta,N);
-        
-        // Safety check for LSTM
-        if(!lstmObj || !lstmObj.model){
-            console.warn('⚠ LSTM model not trained, using AR/HW only');
-            const lm90=ar90;  // Fallback to AR
-            const en90=ensemble(ar90,hw90,lm90,{ar:0.5,hw:0.5,lm:0},N);
-            fcOut={ar:ar90,hw:hw90,lm:lm90,en:en90,N};
-        }else{
-            const lm90=await lstmForecast(lstmObj,N);
-            const en90=ensemble(ar90,hw90,lm90,WT,N);
-            fcOut={ar:ar90,hw:hw90,lm:lm90,en:en90,N};
-        }
-    }catch(err){
-        console.error('buildFC error:',err);
-        toast('⚠ Forecast build failed');
-    }
+try{
+const N=90;
+if(PP.length<LB){
+toast('⚠ Not enough data for LSTM');
+return;
+}
+const ar90=arForecast(PP,arBeta,N);
+const hw90=hwForecast(PP,hwP.alpha,hwP.beta,N);
+
+if(!lstmObj || !lstmObj.model){
+console.warn('⚠ LSTM model not trained, using AR/HW only');
+const lm90=ar90;
+const en90=ensemble(ar90,hw90,lm90,{ar:0.5,hw:0.5,lm:0},N);
+fcOut={ar:ar90,hw:hw90,lm:lm90,en:en90,N};
+}else{
+const lm90=await lstmForecast(lstmObj,N);
+const en90=ensemble(ar90,hw90,lm90,WT,N);
+fcOut={ar:ar90,hw:hw90,lm:lm90,en:en90,N};
+}
+}catch(err){
+console.error('buildFC error:',err);
+toast('⚠ Forecast build failed');
+}
 }
 function fcAt(day){
 const i=Math.min(day-1,fcOut.N-1);
@@ -478,71 +468,72 @@ document.getElementById('feat-bars').innerHTML=coefs.map(c=>
 ).join('');
 }
 // ══════════════════════════════════════════
-// 12. CHARTS (🆕 FIX: Added aspectRatio)
+// 12. CHARTS (Fixed - no aspectRatio conflict)
 // ══════════════════════════════════════════
-const CO={responsive:true,maintainAspectRatio:false,aspectRatio:2,
+const CO={responsive:true,maintainAspectRatio:false,
 interaction:{mode:'index',intersect:false},
 plugins:{legend:{display:false},tooltip:{backgroundColor:'#0e0e12',borderColor:'#252535',borderWidth:1,titleColor:'#e8edf5',bodyColor:'#7a8494',callbacks:{label:c=>`${c.dataset.label}: ₹${c.raw??'N/A'}`}}},
 scales:{x:{grid:{color:'#1c1c24'},ticks:{color:'#3a4050',font:{family:'JetBrains Mono',size:9},maxTicksLimit:10}},
 y:{grid:{color:'#1c1c24'},ticks:{color:'#3a4050',font:{family:'JetBrains Mono',size:9},callback:v=>`₹${v}`}}}};
 function initMainChart(days){
-    try{
-        const ctx=document.getElementById('mainChart').getContext('2d');
-        if(MC)MC.destroy();
-        if(!fcOut || !fcOut.en.length){
-            console.warn('No forecast data for chart');
-            return;
-        }
-        const hist=PP.slice(-Math.min(days,PP.length));
-        const hdates=DS.filter(d=>d.market==='Pollachi').map(d=>d.date).slice(-hist.length);
-        const FD=30;const today=new Date('2026-02-23');
-        const fl=Array.from({length:FD},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()+i+1);return d.toISOString().slice(0,10);});
-        const al=[...hdates,...fl];
-        const ah=[...hist,...Array(FD).fill(null)];
-        const ef=[...Array(hist.length-1).fill(null),hist.at(-1),...fcOut.en.slice(0,FD)];
-        const lf=[...Array(hist.length-1).fill(null),hist.at(-1),...fcOut.lm.slice(0,FD)];
-        const cimin=[...Array(hist.length).fill(null),...fcOut.en.slice(0,FD).map((v,i)=>v-CI.q80*Math.sqrt(i+1))];
-        const cimax=[...Array(hist.length).fill(null),...fcOut.en.slice(0,FD).map((v,i)=>v+CI.q80*Math.sqrt(i+1))];
-        MC=new Chart(ctx,{type:'line',data:{labels:al,datasets:[
-        {label:'CI Min',data:cimin,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.07)',fill:'+1',pointRadius:0},
-        {label:'CI Max',data:cimax,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.07)',fill:'-1',pointRadius:0},
-        {label:'Actual',data:ah,borderColor:'#10b981',borderWidth:1.8,pointRadius:0,tension:.3},
-        {label:'Ensemble',data:ef,borderColor:'#818cf8',borderWidth:2,borderDash:[6,3],pointRadius:0,tension:.4},
-        {label:'LSTM',data:lf,borderColor:'#22d3ee',borderWidth:1.4,borderDash:[3,3],pointRadius:0,tension:.4},
-        ]},options:{...CO}});
-    }catch(err){
-        console.error('initMainChart error:',err);
-    }
+try{
+const ctx=document.getElementById('mainChart').getContext('2d');
+if(MC)MC.destroy();
+if(!fcOut || !fcOut.en.length){
+console.warn('No forecast data for chart');
+return;
+}
+const hist=PP.slice(-Math.min(days,PP.length));
+const hdates=DS.filter(d=>d.market==='Pollachi').map(d=>d.date).slice(-hist.length);
+const FD=30;const today=new Date('2026-02-23');
+const fl=Array.from({length:FD},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()+i+1);return d.toISOString().slice(0,10);});
+const al=[...hdates,...fl];
+const ah=[...hist,...Array(FD).fill(null)];
+const ef=[...Array(hist.length-1).fill(null),hist.at(-1),...fcOut.en.slice(0,FD)];
+const lf=[...Array(hist.length-1).fill(null),hist.at(-1),...fcOut.lm.slice(0,FD)];
+const cimin=[...Array(hist.length).fill(null),...fcOut.en.slice(0,FD).map((v,i)=>v-CI.q80*Math.sqrt(i+1))];
+const cimax=[...Array(hist.length).fill(null),...fcOut.en.slice(0,FD).map((v,i)=>v+CI.q80*Math.sqrt(i+1))];
+MC=new Chart(ctx,{type:'line',data:{labels:al,datasets:[
+{label:'CI Min',data:cimin,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.07)',fill:'+1',pointRadius:0},
+{label:'CI Max',data:cimax,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.07)',fill:'-1',pointRadius:0},
+{label:'Actual',data:ah,borderColor:'#10b981',borderWidth:1.8,pointRadius:0,tension:.3},
+{label:'Ensemble',data:ef,borderColor:'#818cf8',borderWidth:2,borderDash:[6,3],pointRadius:0,tension:.4},
+{label:'LSTM',data:lf,borderColor:'#22d3ee',borderWidth:1.4,borderDash:[3,3],pointRadius:0,tension:.4},
+]},options:{...CO}});
+}catch(err){
+console.error('initMainChart error:',err);
+}
 }
 function initFCChart(){
-    try{
-        const ctx=document.getElementById('fcastChart').getContext('2d');
-        if(FC)FC.destroy();
-        if(!fcOut || !fcOut.en.length){
-            console.warn('No forecast data for chart');
-            return;
-        }    
-        const today=new Date('2026-02-23');
-        const labels=Array.from({length:fcOut.N},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()+i+1);return d.toISOString().slice(0,10);});
-        const ci80mn=fcOut.en.map((v,i)=>v-CI.q80*Math.sqrt(i+1));
-        const ci80mx=fcOut.en.map((v,i)=>v+CI.q80*Math.sqrt(i+1));
-        const ci95mn=fcOut.en.map((v,i)=>v-CI.q95*Math.sqrt(i+1));
-        const ci95mx=fcOut.en.map((v,i)=>v+CI.q95*Math.sqrt(i+1));
-        FC=new Chart(ctx,{type:'line',data:{labels,datasets:[
-        {label:'95% CI Min',data:ci95mn,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.04)',fill:'+1',pointRadius:0},
-        {label:'95% CI Max',data:ci95mx,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.04)',fill:'-1',pointRadius:0},
-        {label:'80% CI Min',data:ci80mn,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.11)',fill:'+1',pointRadius:0},
-        {label:'80% CI Max',data:ci80mx,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.11)',fill:'-1',pointRadius:0},
-        {label:'Ensemble',data:fcOut.en,borderColor:'#818cf8',borderWidth:2.5,pointRadius:0,tension:.4},
-        {label:'LSTM',data:fcOut.lm,borderColor:'#22d3ee',borderWidth:1.5,borderDash:[4,2],pointRadius:0,tension:.4},
-        {label:'AR(7)',data:fcOut.ar,borderColor:'#f97316',borderWidth:1.2,borderDash:[2,4],pointRadius:0,tension:.3},
-        {label:'HW',data:fcOut.hw,borderColor:'#f59e0b',borderWidth:1,borderDash:[1,4],pointRadius:0,tension:.3},
-        ]},options:{...CO,plugins:{...CO.plugins,legend:{display:true,labels:{color:'#7a8494',font:{family:'Instrument Sans',size:10}}}}}});
-    }catch(err){
-        console.error('initFCChart error:',err);
-    }    
+try{
+const ctx=document.getElementById('fcastChart').getContext('2d');
+if(FC)FC.destroy();
+if(!fcOut || !fcOut.en.length){
+console.warn('No forecast data for chart');
+return;
+}
+const today=new Date('2026-02-23');
+const labels=Array.from({length:fcOut.N},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()+i+1);return d.toISOString().slice(0,10);});
+const ci80mn=fcOut.en.map((v,i)=>v-CI.q80*Math.sqrt(i+1));
+const ci80mx=fcOut.en.map((v,i)=>v+CI.q80*Math.sqrt(i+1));
+const ci95mn=fcOut.en.map((v,i)=>v-CI.q95*Math.sqrt(i+1));
+const ci95mx=fcOut.en.map((v,i)=>v+CI.q95*Math.sqrt(i+1));
+FC=new Chart(ctx,{type:'line',data:{labels,datasets:[
+{label:'95% CI Min',data:ci95mn,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.04)',fill:'+1',pointRadius:0},
+{label:'95% CI Max',data:ci95mx,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.04)',fill:'-1',pointRadius:0},
+{label:'80% CI Min',data:ci80mn,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.11)',fill:'+1',pointRadius:0},
+{label:'80% CI Max',data:ci80mx,borderColor:'transparent',backgroundColor:'rgba(129,140,248,.11)',fill:'-1',pointRadius:0},
+{label:'Ensemble',data:fcOut.en,borderColor:'#818cf8',borderWidth:2.5,pointRadius:0,tension:.4},
+{label:'LSTM',data:fcOut.lm,borderColor:'#22d3ee',borderWidth:1.5,borderDash:[4,2],pointRadius:0,tension:.4},
+{label:'AR(7)',data:fcOut.ar,borderColor:'#f97316',borderWidth:1.2,borderDash:[2,4],pointRadius:0,tension:.3},
+{label:'HW',data:fcOut.hw,borderColor:'#f59e0b',borderWidth:1,borderDash:[1,4],pointRadius:0,tension:.3},
+]},options:{...CO,plugins:{...CO.plugins,legend:{display:true,labels:{color:'#7a8494',font:{family:'Instrument Sans',size:10}}}}}});
+}catch(err){
+console.error('initFCChart error:',err);
+}
 }
 function initMonthChart(){
+try{
 const ctx=document.getElementById('monthChart');if(!ctx)return;
 const today=new Date('2026-02-23');
 const labels=Array.from({length:6},(_,i)=>{const d=new Date(today);d.setMonth(d.getMonth()+i+1);return d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'});});
@@ -553,16 +544,24 @@ MoC=new Chart(ctx,{type:'bar',data:{labels,datasets:[
 {label:'Expected',data:md.map(d=>d.ex),backgroundColor:'rgba(34,211,238,.32)',borderColor:'rgba(34,211,238,.8)',borderWidth:1,borderRadius:4},
 {label:'Max',data:md.map(d=>d.mx),backgroundColor:'rgba(129,140,248,.28)',borderColor:'rgba(129,140,248,.7)',borderWidth:1,borderRadius:4},
 ]},options:{...CO,plugins:{...CO.plugins,legend:{display:true,labels:{color:'#7a8494',font:{family:'Instrument Sans',size:10}}}}}});
+}catch(err){
+console.error('initMonthChart error:',err);
+}
 }
 function initResidChart(){
+try{
 const ctx=document.getElementById('residChart').getContext('2d');
 const r=vAct.map((v,i)=>v-vEns[i]);
 new Chart(ctx,{type:'bar',data:{labels:r.map((_,i)=>`v${i+1}`),datasets:[{label:'Residual',data:r,
 backgroundColor:r.map(v=>v>=0?'rgba(16,185,129,.45)':'rgba(239,68,68,.45)'),
 borderColor:r.map(v=>v>=0?'rgba(16,185,129,.8)':'rgba(239,68,68,.8)'),borderWidth:1,borderRadius:2}]},
 options:{...CO,plugins:{...CO.plugins,legend:{display:false}}}});
+}catch(err){
+console.error('initResidChart error:',err);
+}
 }
 function initValChart(){
+try{
 const ctx=document.getElementById('valChart').getContext('2d');
 const l=vAct.map((_,i)=>`d${i+1}`);
 new Chart(ctx,{type:'line',data:{labels:l,datasets:[
@@ -572,13 +571,20 @@ new Chart(ctx,{type:'line',data:{labels:l,datasets:[
 {label:'LSTM',data:vLM,borderColor:'#22d3ee',borderWidth:1.1,borderDash:[3,2],pointRadius:0,tension:.3},
 {label:'HW',data:vHW,borderColor:'#f59e0b',borderWidth:1,borderDash:[1,4],pointRadius:0,tension:.3},
 ]},options:{...CO,plugins:{...CO.plugins,legend:{display:true,labels:{color:'#7a8494',font:{family:'Instrument Sans',size:10}}}}}});
+}catch(err){
+console.error('initValChart error:',err);
+}
 }
 function initWgtChart(){
+try{
 const ctx=document.getElementById('wgtChart').getContext('2d');
 new Chart(ctx,{type:'doughnut',data:{
 labels:[`AR(7) ${(WT.ar*100).toFixed(0)}%`,`HW ${(WT.hw*100).toFixed(0)}%`,`LSTM ${(WT.lm*100).toFixed(0)}%`],
 datasets:[{data:[WT.ar,WT.hw,WT.lm],backgroundColor:['#f97316','#f59e0b','#22d3ee'],borderColor:'#09090b',borderWidth:3}]
-},options:{responsive:true,maintainAspectRatio:false,aspectRatio:1.5,plugins:{legend:{position:'bottom',labels:{color:'#7a8494',font:{family:'Instrument Sans',size:11},padding:10}},tooltip:{backgroundColor:'#0e0e12',borderColor:'#252535',borderWidth:1}}}});
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#7a8494',font:{family:'Instrument Sans',size:11},padding:10}},tooltip:{backgroundColor:'#0e0e12',borderColor:'#252535',borderWidth:1}}}});
+}catch(err){
+console.error('initWgtChart error:',err);
+}
 }
 // ══════════════════════════════════════════
 // 13. DATASET TABLE
