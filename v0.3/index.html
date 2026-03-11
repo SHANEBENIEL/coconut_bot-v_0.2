@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoconutAI v3 — Fast ML Engine</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="coco.css">
+</head>
+<body>
+
+<!-- TRAINING OVERLAY -->
+<div id="train-overlay">
+  <div class="tbox">
+    <div class="ttl">🧠 CoconutAI — Training Models</div>
+    <div class="tsub">Real ML in-browser: AR(7) OLS · Holt-Winters SSE · LSTM TF.js<br>Optimised for speed — target: under 90 seconds</div>
+    <div id="steps">
+      <div class="step"><div class="si pend" id="si0">○</div><div class="sl" id="sl0">Build &amp; downsample Tamil Nadu dataset</div><div class="sv" id="sv0">—</div></div>
+      <div class="step"><div class="si pend" id="si1">○</div><div class="sl" id="sl1">Fit AR(7) — OLS normal equations</div><div class="sv" id="sv1">—</div></div>
+      <div class="step"><div class="si pend" id="si2">○</div><div class="sl" id="sl2">Fit Holt-Winters — SSE optimisation</div><div class="sv" id="sv2">—</div></div>
+      <div class="step"><div class="si pend" id="si3">○</div><div class="sl" id="sl3">Train LSTM — 10-step LB · 20 epochs · batch 128</div><div class="sv" id="sv3">—</div></div>
+      <div class="step"><div class="si pend" id="si4">○</div><div class="sl" id="sl4">Ensemble calibration · build 90-day forecast</div><div class="sv" id="sv4">—</div></div>
+    </div>
+    <div class="pbar"><div class="pfill" id="pf" style="width:0%"></div></div>
+    <div class="etime"><span id="et-elapsed">Elapsed: 0s</span><span id="et-est">Est. remaining: —</span></div>
+    <div class="elog" id="elog"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo"><div class="logo-mark">🥥</div>Coconut<em>AI</em></div>
+  <nav class="nav">
+    <button class="nb active" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nb" onclick="showPage('forecast',this)">Forecast</button>
+    <button class="nb" onclick="showPage('dataset',this)">Dataset</button>
+    <button class="nb" onclick="showPage('model',this)">Model</button>
+  </nav>
+  <div class="hdr-r">
+    <div class="pill"><div class="dot"></div>LIVE · TN</div>
+    <div class="mst" id="mst">Initializing…</div>
+  </div>
+</header>
+
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="ticker">
+    <div class="tk"><span class="tl">Today</span><span class="tv" id="tk0">—</span><span class="tv" id="tk0c">—</span></div>
+    <div class="tsep"></div>
+    <div class="tk"><span class="tl">7D High</span><span class="tv" id="tk1">—</span></div>
+    <div class="tsep"></div>
+    <div class="tk"><span class="tl">7D Low</span><span class="tv" id="tk2">—</span></div>
+    <div class="tsep"></div>
+    <div class="tk"><span class="tl">30D Avg</span><span class="tv" id="tk3">—</span></div>
+    <div class="tsep"></div>
+    <div class="tk"><span class="tl">σ Volatility</span><span class="tv" id="tk4">—</span></div>
+    <div class="tsep"></div>
+    <div class="tk"><span class="tl">RSI-14</span><span class="tv" id="tk5">—</span></div>
+    <div class="tsep"></div>
+    <div class="tk"><span class="tl">AI Signal</span><span class="tv ac" id="tk6">—</span></div>
+  </div>
+  <div class="g4">
+    <div class="card"><div class="ca ca-c"></div><div class="clbl">Current Price</div><div class="cval up" id="sc0">₹—</div><div class="csub" id="sc0s">—</div></div>
+    <div class="card"><div class="ca ca-v"></div><div class="clbl">Tomorrow (LSTM)</div><div class="cval" id="sc1">₹—</div><div class="csub" id="sc1s">Range: —</div></div>
+    <div class="card"><div class="ca ca-o"></div><div class="clbl">Next Month (Ensemble)</div><div class="cval" id="sc2">₹—</div><div class="csub" id="sc2s">—</div></div>
+    <div class="card"><div class="ca ca-g"></div><div class="clbl">Ensemble MAPE (Val)</div><div class="cval" id="sc3" style="color:var(--warn)">—%</div><div class="csub" id="sc3s">—</div></div>
+  </div>
+  <div class="cc">
+    <div class="chdr">
+      <div><div class="ctit">Price History + AI Forecast — Pollachi</div>
+      <div class="csb">Green = Actual · Violet = Ensemble · Cyan = LSTM · Band = 80% CI</div></div>
+      <div class="cctrl">
+        <button class="cbtn" onclick="setRange(30,this)">1M</button>
+        <button class="cbtn active" onclick="setRange(90,this)">3M</button>
+        <button class="cbtn" onclick="setRange(180,this)">6M</button>
+        <button class="cbtn" onclick="setRange(365,this)">1Y</button>
+        <button class="cbtn" onclick="setRange(9999,this)">ALL</button>
+      </div>
+    </div>
+    <div class="chart-h270"><canvas id="mainChart"></canvas></div>
+  </div>
+  <div class="shdr">
+    <div><div class="stit">Ensemble Predictions</div><div class="ssub">AR(7) + Holt-Winters + LSTM — trained in-browser</div></div>
+    <span class="tag">Feb 23, 2026</span>
+  </div>
+  <div class="fcg" id="fc-cards"></div>
+  <div class="g2">
+    <div class="card"><div class="ctit" style="margin-bottom:.75rem">📊 Technical Indicators</div><div id="tech-sigs"></div></div>
+    <div class="card"><div class="ctit" style="margin-bottom:.75rem">🌿 Seasonal &amp; Model Context</div><div id="seas-sigs"></div></div>
+  </div>
+</div>
+
+<!-- FORECAST -->
+<div class="page" id="page-forecast">
+  <div class="shdr" style="margin-bottom:1rem">
+    <div><div class="stit">Multi-Horizon Forecast</div>
+    <div class="ssub">CI = empirical residuals × √horizon · All 3 model lines shown</div></div>
+  </div>
+  <div class="cc">
+    <div class="chdr"><div><div class="ctit">90-Day Projection · All Models + Ensemble</div>
+    <div class="csb">Shaded = 80% CI · Dashed lines = individual models</div></div></div>
+    <div class="chart-h300"><canvas id="fcastChart"></canvas></div>
+  </div>
+  <div class="shdr"><div class="stit">Weekly Forecast</div><span class="tag">12 Weeks</span></div>
+  <div class="tcard">
+    <div class="twrap">
+      <table><thead><tr><th>Wk</th><th>Period</th><th>Min ₹/kg</th><th>Expected</th><th>Max ₹/kg</th><th>Δ%</th><th>Conf.</th><th>AR</th><th>LSTM</th></tr></thead>
+      <tbody id="fc-tbody"></tbody></table>
+    </div>
+  </div>
+  <div class="shdr" style="margin-top:.8rem"><div class="stit">Monthly Outlook</div><span class="tag">6 Months</span></div>
+  <div class="cc"><div class="chart-h230"><canvas id="monthChart"></canvas></div></div>
+</div>
+
+<!-- DATASET -->
+<div class="page" id="page-dataset">
+  <div class="tcard">
+    <div class="thead-bar">
+      <div><div class="ttitle">Tamil Nadu Coconut Price Dataset</div>
+      <div style="font-size:.68rem;color:var(--text2);margin-top:2px" id="ds-cnt">—</div></div>
+      <div class="tacts">
+        <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn pri" onclick="openAdd()">+ Add</button>
+      </div>
+    </div>
+    <div class="srow">
+      <input class="sinp" type="text" placeholder="Search date, market…" id="dss" oninput="filterDS()">
+      <select class="ssel" id="dsy" onchange="filterDS()"><option value="">All Years</option><option>2020</option><option>2021</option><option>2022</option><option>2023</option><option>2024</option><option>2025</option><option>2026</option></select>
+      <select class="ssel" id="dsm" onchange="filterDS()"><option value="">All Markets</option><option>Pollachi</option><option>Coimbatore</option><option>Chennai</option><option>Tiruppur</option><option>Erode</option><option>Salem</option><option>Madurai</option></select>
+    </div>
+    <div class="twrap">
+      <table><thead><tr><th>#</th><th>Date</th><th>Market</th><th>Min</th><th>Modal</th><th>Max</th><th>Volume</th><th>Grade</th><th></th></tr></thead>
+      <tbody id="ds-tbody"></tbody></table>
+    </div>
+    <div class="tfoot"><span id="ds-info">—</span>
+      <div class="pnav">
+        <button class="btn" onclick="dsPage(-1)">← Prev</button>
+        <span id="ds-pg" style="font-family:monospace;font-size:.7rem;padding:3px 7px">—</span>
+        <button class="btn" onclick="dsPage(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODEL -->
+<div class="page" id="page-model">
+  <div class="shdr" style="margin-bottom:1rem">
+    <div><div class="stit">Model Architecture &amp; Performance</div>
+    <div class="ssub">Real training — AR(7) OLS · Holt-Winters SSE · LSTM TF.js</div></div>
+    <span class="tag">TF.js v4 · In-Browser</span>
+  </div>
+  <div class="card" style="margin-bottom:1rem">
+    <div class="ctit" style="margin-bottom:.5rem">Speed optimisations applied</div>
+    <div style="font-size:.76rem;color:var(--text2);line-height:1.7">
+      <strong style="color:var(--text)">① AR(7)</strong> — OLS via normal equations X'X·β = X'y, Gaussian elimination. Fast: O(n·p²).<br>
+      <strong style="color:var(--text)">② Holt-Winters</strong> — SSE grid-search α∈[0.1,0.9] step 0.2, β∈[0.05,0.4] step 0.15. ~20 fits vs 100+ previously.<br>
+      <strong style="color:var(--text)">③ LSTM</strong> — 1 layer (24 units), lookback=10, epochs=20, batch=128. Downsampled to weekly averages for training (≈315 samples). Batch-vectorized 90-step rollout.<br>
+      <strong style="color:var(--text)">Ensemble</strong> — Weights grid-searched on val MAPE (step 0.1). Conformal CI from |residuals|.
+    </div>
+    <div class="mgrid" id="mgrid"></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="ctit" style="margin-bottom:.75rem">AR(7) Lag Coefficients</div><div id="feat-bars"></div></div>
+    <div class="card"><div class="ctit" style="margin-bottom:.75rem">Ensemble Weights (Val-Optimised)</div>
+      <div class="chart-h200"><canvas id="wgtChart"></canvas></div>
+    </div>
+  </div>
+  <div class="cc">
+    <div class="ctit" style="margin-bottom:.7rem">All Models vs Actual — Validation</div>
+    <div class="chart-h270"><canvas id="valChart"></canvas></div>
+  </div>
+  <div class="cc">
+    <div class="ctit" style="margin-bottom:.7rem">Ensemble Residuals (Validation)</div>
+    <div class="chart-h200"><canvas id="residChart"></canvas></div>
+  </div>
+</div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="mt" id="mtitle">Add Record</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Date</label><input type="date" class="fi" id="m-date"></div>
+      <div class="fg"><label class="fl">Market</label><select class="fi" id="m-mkt"><option>Pollachi</option><option>Coimbatore</option><option>Chennai</option><option>Tiruppur</option><option>Erode</option><option>Salem</option><option>Madurai</option></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Min ₹/kg</label><input type="number" class="fi" id="m-min" step=".5"></div>
+      <div class="fg"><label class="fl">Max ₹/kg</label><input type="number" class="fi" id="m-max" step=".5"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Modal ₹/kg</label><input type="number" class="fi" id="m-mod" step=".5"></div>
+      <div class="fg"><label class="fl">Volume (t)</label><input type="number" class="fi" id="m-vol"></div>
+    </div>
+    <div class="fg"><label class="fl">Grade</label><select class="fi" id="m-grd"><option>Premium</option><option>Grade A</option><option>Grade B</option><option>Mixed</option></select></div>
+    <div class="macts"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="saveRec()">Save</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="coco.js"></script>
+</body>
+</html>
