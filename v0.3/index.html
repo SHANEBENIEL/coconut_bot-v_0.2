@@ -28,18 +28,22 @@
   </div>
 </div>
 
-<!-- HEADER -->
+<!-- HEADER — two-row on mobile -->
 <header class="header">
-  <div class="logo"><div class="logo-mark">🥥</div>Coconut<em>AI</em></div>
-  <nav class="nav">
-    <button class="nb active" onclick="showPage('dashboard',this)">Dashboard</button>
-    <button class="nb" onclick="showPage('forecast',this)">Forecast</button>
-    <button class="nb" onclick="showPage('dataset',this)">Dataset</button>
-    <button class="nb" onclick="showPage('model',this)">Model</button>
-  </nav>
-  <div class="hdr-r">
-    <div class="pill"><div class="dot"></div>LIVE · TN</div>
-    <div class="mst" id="mst">Initializing…</div>
+  <div class="header-row1">
+    <div class="logo"><div class="logo-mark">🥥</div>Coconut<em>AI</em></div>
+    <div class="hdr-r">
+      <div class="pill"><div class="dot"></div><span class="pill-txt">LIVE · TN</span></div>
+      <div class="mst" id="mst">Loading…</div>
+    </div>
+  </div>
+  <div class="header-row2">
+    <nav class="nav">
+      <button class="nb active" onclick="showPage('dashboard',this)">Dashboard</button>
+      <button class="nb" onclick="showPage('forecast',this)">Forecast</button>
+      <button class="nb" onclick="showPage('dataset',this)">Dataset</button>
+      <button class="nb" onclick="showPage('model',this)">Model</button>
+    </nav>
   </div>
 </header>
 
@@ -201,6 +205,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
 <script src="coco.js"></script>
 </body>
 </html>
